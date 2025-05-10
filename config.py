@@ -10,6 +10,7 @@ SOUND_FILES = {
     "low_rpm": os.path.join(SOUND_DIR, "engine_low_rpm_loop.wav"),
     "mid_rpm": os.path.join(SOUND_DIR, "engine_mid_rpm_loop.wav"),
     "high_rpm": os.path.join(SOUND_DIR, "engine_high_rpm_loop.wav"),
+    "cruise": os.path.join(SOUND_DIR, "cruise.wav"),
     "accel_burst": os.path.join(SOUND_DIR, "quick_accel_burst.wav"),
     "decel_pop": os.path.join(SOUND_DIR, "decel_pop1.wav"),
 }
@@ -22,8 +23,9 @@ SOUND_DURATIONS = {
     "low_rpm": 5.14,
     "mid_rpm": 10.38,
     "high_rpm": 10.64,
-    "accel_burst": 3.57, # Used for accel burst effect timing
-    "decel_pop": 6.74,   # Full duration of the decel pop sound
+    "cruise": 21.0, # Ensure this is accurate
+    "accel_burst": 3.57,
+    "decel_pop": 6.74,
 }
 
 # --- Engine Simulation ---
@@ -42,12 +44,11 @@ RPM_RANGES = {
 
 RPM_ACCEL_RATE = 7000
 RPM_DECEL_RATE = 6000
-RPM_IDLE_RETURN_RATE = 1500 # Rate when throttle is 0 and returning to idle (not during pop linger)
-RPM_INERTIA_FACTOR = 0.05 # Not heavily used with current direct rate approach
+RPM_IDLE_RETURN_RATE = 1500
 
 # --- Audio Playback ---
 MAIN_ENGINE_VOLUME = 0.7
-SFX_VOLUME = 0.8 # Base volume for SFX
+SFX_VOLUME = 0.8
 CROSSFADE_DURATION_MS = 450
 
 # --- Load Simulation (Basic) ---
@@ -55,20 +56,36 @@ LOAD_THRESHOLD_DECEL = -2000
 
 # --- Optional Features ---
 ENABLE_ACCEL_BURST = True
-ACCEL_BURST_THROTTLE_THRESHOLD = 0.5 # Make it a more significant jump: new_throttle > old_throttle + this
-ACCEL_BURST_MIN_NEW_THROTTLE = 0.7  # New throttle must be at least this high
-ACCEL_BURST_MAX_OLD_THROTTLE = 0.3  # Old throttle must have been below this
-ACCEL_BURST_COOLDOWN_MS = 300      # Cooldown for the SFX itself
-ACCEL_BURST_EFFECT_DURATION_MULTIPLIER = 0.85 # Multiplier for SOUND_DURATIONS["accel_burst"] for engine sound suppression
-ACCEL_BURST_SFX_VOLUME_MULTIPLIER = 1.15 # Multiplier for SFX_VOLUME for this specific sound
+ACCEL_BURST_THROTTLE_THRESHOLD = 0.45 
+ACCEL_BURST_MIN_NEW_THROTTLE = 0.6  
+ACCEL_BURST_MAX_OLD_THROTTLE = 0.25 
+ACCEL_BURST_COOLDOWN_MS = 250
+ACCEL_BURST_EFFECT_DURATION_MULTIPLIER = 0.9 
+ACCEL_BURST_SFX_VOLUME_MULTIPLIER = 1.2 
+ACCEL_BURST_BASELINE_CREEP_THRESHOLD = 0.05
 
 ENABLE_DECEL_POPS = True
 DECEL_POP_RPM_THRESHOLD = 1500
-DECEL_POP_CHANCE = 0.75 # Chance to play if conditions met
-DECEL_POP_COOLDOWN_MS = 200 # Cooldown for the SFX itself
-DECEL_POP_LINGER_DURATION_S = 4.8  # <<< INCREASED: How long RPM fall rate & sound loop are modified
-DECEL_POP_RPM_FALL_RATE_MODIFIER = 0.45 # <<< ADJUSTED: Makes RPM fall slower (0.1 very slow, 1.0 no change)
-DECEL_POP_SFX_VOLUME_MULTIPLIER = 0.9 # Multiplier for SFX_VOLUME for this specific sound
+DECEL_POP_CHANCE = 0.8 
+DECEL_POP_COOLDOWN_MS = 150
+DECEL_POP_LINGER_DURATION_S = 5.8
+DECEL_POP_RPM_FALL_RATE_MODIFIER = 0.35
+DECEL_POP_SFX_VOLUME_MULTIPLIER = 0.95
+
+# --- Cruise Feature ---
+ENABLE_CRUISE_SOUND = True
+# To ENTER cruise, throttle must be >= CRUISE_THROTTLE_ENTER_THRESHOLD
+CRUISE_THROTTLE_ENTER_THRESHOLD = 0.98  # e.g., 98% or higher
+# To MAINTAIN cruise, throttle must be >= CRUISE_THROTTLE_MAINTAIN_THRESHOLD
+CRUISE_THROTTLE_MAINTAIN_THRESHOLD = 0.95 # e.g., 95% or higher (allows some dip)
+CRUISE_RPM_THRESHOLD = MAX_RPM - 150 # RPM must be near max (allows slight dip from calculated max)
+
+CRUISE_HIGH_RPM_SUSTAIN_S = SOUND_DURATIONS["high_rpm"] * 0.8 
+
+# --- General Throttle Jitter Tolerance ---
+# Used for determining if throttle is "effectively zero" or "significantly open"
+THROTTLE_EFFECTIVELY_ZERO = 0.05 # Values below this are treated as off/idle
+THROTTLE_SIGNIFICANTLY_OPEN = 0.10 # Values above this mean user is actively throttling
 
 # --- Pygame Mixer Settings ---
 MIXER_FREQUENCY = 44100
