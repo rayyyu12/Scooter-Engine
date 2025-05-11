@@ -99,7 +99,7 @@ class App:
             print("SIM_THREAD: EngineSimulator initialized.")
             
             self.root.after(0, lambda: self.start_button.config(state=tk.NORMAL))
-            self.root.after(0, lambda: self.throttle_slider.config(state=tk.NORMAL))
+            self.root.after(0, lambda: self.throttle_slider.config(state=tk.NORMAL)) # Enable slider after init
             self.root.after(0, lambda: self.status_label.config(text="Ready."))
 
             print("SIM_THREAD: Entering main simulation loop...")
@@ -147,6 +147,7 @@ class App:
         if not self.engine_simulator or not self.running:
             return
         value = float(value_str) / 100.0
+        # Call set_throttle regardless of engine state, let simulator handle it
         self.engine_simulator.set_throttle(value)
 
         if hasattr(self, 'throttle_value_label'):
@@ -159,13 +160,17 @@ class App:
         print("MAIN_APP: Start Engine button clicked.")
         if self.engine_simulator and self.engine_simulator.get_state() == EngineState.OFF:
             self.engine_simulator.start_engine()
-        # ... (rest of method)
+        # Update GUI immediately after trying to start
+        self._update_gui_data()
+
 
     def _stop_engine(self):
         print("MAIN_APP: Stop Engine button clicked.")
         if self.engine_simulator and self.engine_simulator.get_state() not in [EngineState.OFF, EngineState.SHUTTING_DOWN]:
             self.engine_simulator.stop_engine()
-            # ... (rest of method)
+        # Update GUI immediately
+        self._update_gui_data()
+
 
     def _update_gui_data(self):
         if not self.running or not hasattr(self, 'rpm_label'): 
@@ -188,12 +193,12 @@ class App:
                 
                 if state == EngineState.RUNNING and \
                    hasattr(self.engine_simulator, 'is_currently_cruising') and \
-                   self.engine_simulator.is_currently_cruising: # Check the new flag
+                   self.engine_simulator.is_currently_cruising: 
                     state_text = "CRUISING"
                     current_status_text = "Engine Cruising."
 
                 self.state_label.config(text=f"State: {state_text}")
-                # ... (rest of GUI update logic)
+                
                 if hasattr(self, 'status_label') and self.status_label.winfo_exists() and \
                    self.status_label['text'] != current_status_text and \
                    not (self.status_label['text'].startswith("ERROR")): 
@@ -203,15 +208,21 @@ class App:
                 is_busy_transition = (state == EngineState.STARTING or state == EngineState.SHUTTING_DOWN)
                 
                 if hasattr(self, 'start_button') and self.start_button.winfo_exists():
-                    self.start_button.config(state=tk.NORMAL if is_off else tk.DISABLED)
+                    self.start_button.config(state=tk.NORMAL if is_off and pygame.mixer.get_init() else tk.DISABLED)
                 if hasattr(self, 'stop_button') and self.stop_button.winfo_exists():
                     self.stop_button.config(state=tk.DISABLED if (is_off or is_busy_transition) else tk.NORMAL)
                 if hasattr(self, 'throttle_slider') and self.throttle_slider.winfo_exists():
-                     self.throttle_slider.config(state=tk.DISABLED if is_busy_transition else tk.NORMAL)
+                     # Throttle slider should be enabled if engine is IDLE or RUNNING, and not busy.
+                     # And pygame mixer must be initialized.
+                     slider_state = tk.NORMAL if state in [EngineState.IDLE, EngineState.RUNNING] and not is_busy_transition and pygame.mixer.get_init() else tk.DISABLED
+                     self.throttle_slider.config(state=slider_state)
             else: 
                 if hasattr(self, 'start_button') and self.start_button.winfo_exists(): self.start_button.config(state=tk.DISABLED)
                 if hasattr(self, 'stop_button') and self.stop_button.winfo_exists(): self.stop_button.config(state=tk.DISABLED)
                 if hasattr(self, 'throttle_slider') and self.throttle_slider.winfo_exists(): self.throttle_slider.config(state=tk.DISABLED)
+                if hasattr(self, 'status_label') and self.status_label.winfo_exists() and not self.status_label['text'].startswith("ERROR"):
+                    self.status_label.config(text="Simulator not ready.")
+
 
         except tk.TclError:
             pass 
@@ -223,7 +234,6 @@ class App:
 
     def _on_closing(self):
         print("MAIN_APP: _on_closing called. Setting self.running to False.")
-        # ... (rest of closing logic)
         self.running = False
         if hasattr(self, 'simulation_thread') and self.simulation_thread.is_alive():
             print("MAIN_APP: Waiting for simulation thread to join...")

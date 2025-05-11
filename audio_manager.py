@@ -11,11 +11,11 @@ class AudioManager:
                  enable_accel_burst, enable_decel_pops):
         
         self.sounds = {}
-        self.engine_channel1 = None # Pygame Channel 0
-        self.engine_channel2 = None # Pygame Channel 1
-        self.sfx_channel = None     # Pygame Channel 2 (starter, shutdown)
-        self.burst_pop_channel = None # Pygame Channel 3 (accel_burst, decel_pop)
-        self.pop_channel = None # Alias for burst_pop_channel
+        self.engine_channel1 = None 
+        self.engine_channel2 = None 
+        self.sfx_channel = None     
+        self.burst_pop_channel = None 
+        self.pop_channel = None 
 
         self.active_engine_channel = None
         self.inactive_engine_channel = None
@@ -28,9 +28,8 @@ class AudioManager:
         self.last_accel_burst_time = 0
         self.xfade_log_counter = 0 
 
-        # Use global config values directly
         self.sound_files_config = config.SOUND_FILES
-        self.sfx_volume_config = config.SFX_VOLUME # General SFX volume
+        self.sfx_volume_config = config.SFX_VOLUME 
         self.main_engine_volume_config = config.MAIN_ENGINE_VOLUME
         self.crossfade_duration_ms_config = config.CROSSFADE_DURATION_MS
         self.accel_burst_cooldown_ms_config = config.ACCEL_BURST_COOLDOWN_MS
@@ -46,12 +45,10 @@ class AudioManager:
                     channels=config.MIXER_CHANNELS,
                     buffer=config.MIXER_BUFFER_SIZE
                 )
-            # else: print("AUDIO_MAN: Pygame mixer was already initialized.")
             
             current_num_channels = pygame.mixer.get_num_channels()
             if current_num_channels < config.NUM_AUDIO_CHANNELS:
                  pygame.mixer.set_num_channels(config.NUM_AUDIO_CHANNELS)
-            # print(f"AUDIO_MAN: Pygame mixer ready. Num channels: {pygame.mixer.get_num_channels()}.")
 
         except pygame.error as e:
             print(f"AUDIO_MAN: FATAL Error initializing pygame.mixer: {e}")
@@ -67,42 +64,36 @@ class AudioManager:
                 self.sfx_channel = pygame.mixer.Channel(2)
                 self.burst_pop_channel = pygame.mixer.Channel(3)
                 self.pop_channel = self.burst_pop_channel 
-                # print(f"AUDIO_MAN: Channels: Eng1({self.engine_channel1}), Eng2({self.engine_channel2}), "
-                #       f"SFX({self.sfx_channel}), Burst/Pop({self.burst_pop_channel})")
                 self.active_engine_channel = self.engine_channel1
                 self.inactive_engine_channel = self.engine_channel2
-            else: # Fallback for fewer channels
+            else: 
                 print(f"AUDIO_MAN: WARNING - Not enough audio channels available ({total_channels}). Need at least 4 for all features.")
                 if total_channels >= 2:
                     self.engine_channel1 = pygame.mixer.Channel(0)
                     self.engine_channel2 = pygame.mixer.Channel(1)
                     self.active_engine_channel = self.engine_channel1
                     self.inactive_engine_channel = self.engine_channel2
-                    if total_channels >= 3: # If we have a 3rd, use it for general SFX
+                    if total_channels >= 3: 
                         self.sfx_channel = pygame.mixer.Channel(2)
-                        self.burst_pop_channel = self.sfx_channel # Share with SFX
+                        self.burst_pop_channel = self.sfx_channel 
                         self.pop_channel = self.sfx_channel
-                    else: # Only 2 channels, SFX will be very limited or conflict
+                    else: 
                         print("AUDIO_MAN: WARNING - Only 2 channels. SFX (starter, burst, pop) might conflict or not play.")
-                        self.sfx_channel = self.engine_channel1 # Very suboptimal, will cut engine sounds
+                        self.sfx_channel = self.engine_channel1 
                         self.burst_pop_channel = self.engine_channel2
                         self.pop_channel = self.engine_channel2
-        # else: print("AUDIO_MAN: Mixer not initialized after init attempt. Audio will be disabled.")
 
     def load_sounds(self):
         if not pygame.mixer.get_init(): return
-        # print("AUDIO_MAN: Starting sound loading...")
         for key, path in self.sound_files_config.items():
             if os.path.exists(path):
                 try:
                     sound_obj = pygame.mixer.Sound(path)
                     if sound_obj.get_length() > 0: 
                         self.sounds[key] = sound_obj
-                        # print(f"AUDIO_MAN: Loaded: {key} from {path} (len: {sound_obj.get_length():.2f}s)")
-                    # else: print(f"AUDIO_MAN: WARNING - ZERO LENGTH: {key} from {path}")
+                    else: print(f"AUDIO_MAN: WARNING - ZERO LENGTH: {key} from {path}") # Added this warning
                 except pygame.error as e: print(f"AUDIO_MAN: Error loading sound {key} from {path}: {e}")
-            # else: print(f"AUDIO_MAN: Sound file NOT FOUND: {path} for key: {key}")
-        # print("AUDIO_MAN: Sound loading complete.")
+            else: print(f"AUDIO_MAN: Sound file NOT FOUND: {path} for key: {key}")
 
     def get_sound(self, key):
         if key is None: return None
@@ -116,7 +107,7 @@ class AudioManager:
         if sound:
             sound.set_volume(config.SFX_VOLUME * volume_multiplier)
             channel_to_use.play(sound, loops=loops)
-            print(f"AUDIO_MAN: ---> SFX PLAYING: '{key}' on {channel_to_use}")
+            # print(f"AUDIO_MAN: ---> SFX PLAYING: '{key}' on {channel_to_use}")
             return True
         return False
 
@@ -124,7 +115,7 @@ class AudioManager:
         if not pygame.mixer.get_init() or not self.burst_pop_channel: return False
         if not config.ENABLE_ACCEL_BURST: return False
         current_time_ms = time.time() * 1000
-        if current_time_ms - self.last_accel_burst_time > config.ACCEL_BURST_COOLDOWN_MS:
+        if current_time_ms - self.last_accel_burst_time > self.accel_burst_cooldown_ms_config:
             sound = self.get_sound("accel_burst")
             if sound and not self.burst_pop_channel.get_busy():
                 vol = config.SFX_VOLUME * config.ACCEL_BURST_SFX_VOLUME_MULTIPLIER
@@ -138,9 +129,9 @@ class AudioManager:
         if not pygame.mixer.get_init() or not self.pop_channel: return False
         if not config.ENABLE_DECEL_POPS: return False
         current_time_ms = time.time() * 1000
-        if current_time_ms - self.last_pop_time > config.DECEL_POP_COOLDOWN_MS:
+        if current_time_ms - self.last_pop_time > self.decel_pop_cooldown_ms_config:
             sound = self.get_sound("decel_pop")
-            if sound and not self.pop_channel.get_busy():
+            if sound and not self.pop_channel.get_busy(): # Ensure channel is free for this specific SFX
                 vol = config.SFX_VOLUME * config.DECEL_POP_SFX_VOLUME_MULTIPLIER
                 sound.set_volume(min(1.0, vol))
                 self.pop_channel.play(sound)
@@ -153,7 +144,6 @@ class AudioManager:
             return
         sound_to_play_obj = self.get_sound(target_sound_key)
         if not sound_to_play_obj: 
-            # print(f"AUDIO_MAN: WARN - update_engine_sound called with '{target_sound_key}', but sound object not found.")
             return
 
         if self.is_crossfading and self.crossfade_to_sound_key == target_sound_key: return
@@ -197,7 +187,7 @@ class AudioManager:
             if current_inactive_sound_on_ch != old_sound_obj or not current_inactive_busy_status:
                 self.inactive_engine_channel.play(old_sound_obj, loops=-1)
             self.inactive_engine_channel.set_volume(self.main_engine_volume_config)
-        elif self.inactive_engine_channel.get_busy():
+        elif self.inactive_engine_channel.get_busy(): # If no old sound but channel was busy, ensure it's set to full volume before fading out
             self.inactive_engine_channel.set_volume(self.main_engine_volume_config)
 
     def _handle_crossfade(self):
@@ -206,26 +196,25 @@ class AudioManager:
         progress = min(elapsed_time_ms / self.crossfade_duration_ms_config, 1.0)
         vol_to = self.main_engine_volume_config * progress; vol_from = self.main_engine_volume_config * (1.0 - progress)
         sound_to_obj = self.get_sound(self.crossfade_to_sound_key); sound_from_obj = self.get_sound(self.crossfade_from_sound_key)
-        log_this_time = (self.xfade_log_counter % 120 == 0) 
-
+        
         if sound_to_obj :
-            if self.active_engine_channel.get_sound() != sound_to_obj:
-                if log_this_time: print(f"AM (XF_H WARN): AC {self.active_engine_channel} mismatch! Exp '{self.crossfade_to_sound_key}', Got: {self.active_engine_channel.get_sound()}. Force play.")
+            if self.active_engine_channel.get_sound() != sound_to_obj and not self.active_engine_channel.get_busy(): # If sound changed or stopped, restart it
                 self.active_engine_channel.play(sound_to_obj, loops=-1) 
             if self.active_engine_channel.get_busy(): self.active_engine_channel.set_volume(vol_to)
         
         if sound_from_obj:
-            if self.inactive_engine_channel.get_sound() != sound_from_obj:
-                if log_this_time: print(f"AM (XF_H WARN): IC {self.inactive_engine_channel} mismatch! Exp '{self.crossfade_from_sound_key}', Got: {self.inactive_engine_channel.get_sound()}. Force play.")
+            if self.inactive_engine_channel.get_sound() != sound_from_obj and not self.inactive_engine_channel.get_busy(): # If sound changed or stopped, restart it
                 self.inactive_engine_channel.play(sound_from_obj, loops=-1)
             if self.inactive_engine_channel.get_busy(): self.inactive_engine_channel.set_volume(vol_from)
-        elif self.inactive_engine_channel.get_busy(): self.inactive_engine_channel.set_volume(vol_from)
+        elif self.inactive_engine_channel.get_busy(): # If no specific sound_from_obj but channel was busy
+            self.inactive_engine_channel.set_volume(vol_from)
         self.xfade_log_counter +=1
 
         if progress >= 1.0:
             if sound_from_obj and self.inactive_engine_channel.get_busy() and self.inactive_engine_channel.get_sound() == sound_from_obj:
                 self.inactive_engine_channel.stop()
-            elif not sound_from_obj and self.inactive_engine_channel.get_busy(): self.inactive_engine_channel.stop()
+            elif not sound_from_obj and self.inactive_engine_channel.get_busy(): self.inactive_engine_channel.stop() # Stop if no specific from_sound but was busy
+            
             self.current_loop_sound_key = self.crossfade_to_sound_key; self.is_crossfading = False
             if sound_to_obj:
                 if self.active_engine_channel.get_sound() != sound_to_obj or not self.active_engine_channel.get_busy():
